@@ -1,0 +1,18 @@
+{
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": ".",
+  "verbose": true,
+  "testEnvironment": "node",
+  "testRegex": ".e2e-spec.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "moduleNameMapper": {
+    "@app/core/(.*)": "<rootDir>/../libs/core/src/$1",
+    "@app/core": "<rootDir>/../libs/core/src",
+    "@app/nestjs/(.*)": "<rootDir>/../libs/nestjs/src/$1",
+    "@app/nestjs": "<rootDir>/../libs/nestjs/src",
+    "@app/typeorm/(.*)": "<rootDir>/../libs/typeorm/src/$1",
+    "@app/typeorm": "<rootDir>/../libs/typeorm/src"
+  }
+}

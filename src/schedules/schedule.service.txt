@@ -1,0 +1,55 @@
+/* eslint-disable prettier/prettier */
+import { Injectable, OnModuleInit } from "@nestjs/common";
+import { Station } from "src/core/entities/setting/station.entity";
+import { FlashService } from "src/core/services/flash/flash.service";
+import { StationService } from "src/core/services/setting/station.service";
+
+@Injectable()
+export class ScheduleService implements OnModuleInit {
+  private running = true;
+
+  constructor(
+    private readonly stationService: StationService,
+    private readonly flashService: FlashService,
+  ) {}
+
+
+  async onModuleInit() {
+    console.log('✅ INIT OK');
+
+    this.startLoop().catch(err => {
+      console.error('💥 LOOP CRASH', err);
+    });
+  }
+
+  onModuleDestroy() {
+    this.running = false;
+  }
+
+  async startLoop() {
+    console.log('🚀 startLoop lancé',this.running);
+
+    while (true) {
+      try {
+        console.log('🔁 LOOP');
+
+        const stations = await Station.find();
+        console.log('📊 Stations:', stations);
+        for (const st of stations) {
+          await this.flashService.getckeckAvaibilityStationWeight({ station: st.code });
+        }
+
+      } catch (error) {
+        console.error('❌ erreur dans la boucle', error);
+      }
+
+      await this.sleep(2000);
+    }
+  }
+
+  sleep(ms: number) {
+    return new Promise(resolve => setTimeout(resolve, ms));
+  }
+}
+
+

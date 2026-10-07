@@ -1,0 +1,35 @@
+import { Column, Entity } from 'typeorm';
+import { ApiProperty } from '@nestjs/swagger';
+import { CoreEntity } from '../base/core.entity';
+import { instanceToPlain } from 'class-transformer';
+import { IsNumber, IsString } from 'class-validator';
+
+@Entity({
+  orderBy: { createdAt: 'DESC', updatedAt: 'DESC' },
+})
+export class Setting extends CoreEntity {
+  @IsNumber()
+  @ApiProperty({ description: `Delai latence reseau` })
+  @Column({ name: 'stale_delay', default: 20000 })
+  staledelay: number;
+
+  @IsNumber()
+  @ApiProperty({ description: `Delai d'arret après la latence reseau` })
+  @Column({ name: 'stop_delay', default: 50000 })
+  stopdelay: number;
+
+  @IsString()
+  @ApiProperty({ description: `urL de connexion du service pour python` })
+  @Column({ name: 'login_uri' })
+  loginuri: string;
+
+  @IsString()
+  @ApiProperty({ description: `uri de connexion du service pour python` })
+  @Column({ name: 'login_uri' })
+  loginuri: string;
+
+  toJSON() {
+    return instanceToPlain(this);
+  }
+  // END Methods **************************************
+}
