@@ -4,6 +4,7 @@
 .env.example2
 docker-compose.yml
 package-lock.json
+/docs
 
 # compiled output
 /dist
