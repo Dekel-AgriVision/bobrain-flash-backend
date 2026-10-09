@@ -105,7 +105,12 @@ export class DefaultDataService {
    * pour ne pas bloquer le compte administrateur.
    */
   private async ensureDefaultRoleAccess() {
-    const role = await Role.findOneBy({ name: RoleEnum.MANAGER });
+    // Plusieurs rôles peuvent avoir le type `manager` (ADR-0021) : seul le rôle
+    // par défaut (le plus ancien) est concerné, jamais un rôle créé ensuite.
+    const role = await Role.findOne({
+      where: { name: RoleEnum.MANAGER },
+      order: { createdAt: 'ASC' },
+    });
     if (role && role.adminPermission !== true && isEmpty(role.permissions)) {
       role.adminPermission = true;
       await role.save();
@@ -201,7 +206,10 @@ export class DefaultDataService {
   }
 
   // 🔥 récupérer les rôles une seule fois
-  const managerRole = await Role.findOneBy({ name: RoleEnum.MANAGER });
+  const managerRole = await Role.findOne({
+    where: { name: RoleEnum.MANAGER },
+    order: { createdAt: 'ASC' },
+  });
   const defaultBranch =
     (await Branch.findOneBy({ code: defaultBranches[0].code })) ??
     (await Branch.findOneBy({ displayName: defaultBranches[0].displayName }));

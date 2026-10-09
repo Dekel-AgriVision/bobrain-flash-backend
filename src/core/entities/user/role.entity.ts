@@ -26,14 +26,15 @@ export class Role extends CoreEntity {
 
   @IsNotEmpty()
   @IsString()
-  @ApiProperty({ description: `Code`, uniqueItems: true })
+  // Type de rôle : plusieurs rôles peuvent partager le même type, sauf `manager` (ADR-0021)
+  @ApiProperty({ description: `Type de rôle (manager, admin, guest...). Non unique, sauf manager.` })
   @Index()
   @Column()
   name: RoleEnum;
 
   @IsOptional()
   @IsString()
-  @ApiProperty({ description: `Nom` })
+  @ApiProperty({ description: `Nom du rôle (unique, obligatoire à la création)` })
   @Column({ name: 'display_name' })
   displayName: string;
 
