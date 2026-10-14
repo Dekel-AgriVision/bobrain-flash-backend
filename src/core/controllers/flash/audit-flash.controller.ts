@@ -8,31 +8,29 @@ import {
   Paginated,
 } from '@app/nestjs';
 import { buildFilterFromApiSearchParams } from '@app/typeorm';
-import { Controller, Get, Param, ParseUUIDPipe, Query } from '@nestjs/common';
+import { Controller, Get, Param, ParseIntPipe, Query } from '@nestjs/common';
 import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { ApiRequestIssuerHeader } from 'src/modules/auth/decorators/api-request-issuer-header.decorator';
 import { CurrentUser } from 'src/modules/auth/decorators/current-user.decorator';
 import { AbilityActionEnum, AbilitySubjectEnum } from '../../definitions/enums';
 import { AuthUser } from '../../entities/session/auth-user.entity';
-import { AuditFlash } from 'src/core/entities/flash/audit-flash.entity';
+import { WeightLog } from 'src/core/entities/flash/weight-log.entity';
+import { WeightDaily } from 'src/core/entities/flash/weight-daily.entity';
 import {
   AuditFlashDetails,
   AuditFlashService,
   AuditFlashStats,
 } from 'src/core/services/flash/audit-flash.service';
 
+// Champs texte de weight_log (ADR-0022). statusMsg et les infos du poste
+// (userName, computerName...) sont calculés ou stockés dans station_session.
 const AUDIT_TEXT_FILTER_FIELDS = [
   'reference',
   'ticket',
   'station',
   'branch',
   'status',
-  'sentWeight',
-  'statusMsg',
-  'userName',
-  'userProfile',
-  'computerName',
-  'computerUser',
+  'frame',
 ];
 
 //@ApiAuthJwtHeader()
@@ -48,15 +46,15 @@ export class AuditFlashController {
   }
 
   /**
-   * Historique paginé des flashs (table audit_flash)
+   * Historique paginé des pesées (table weight_log, ADR-0022)
    */
   @ApiSearchQueryFilter()
-  @CustomApiPaginatedResponse(AuditFlash)
+  @CustomApiPaginatedResponse(WeightLog)
   @Get()
   async findPaginated(
     @CurrentUser() authUser: AuthUser,
     @Query() query?: any,
-  ): Promise<Paginated<AuditFlash>> {
+  ): Promise<Paginated<WeightLog>> {
     await this.checkRead(authUser);
 
     const options = buildFilterFromApiSearchParams(
@@ -72,14 +70,14 @@ export class AuditFlashController {
    * Historique paginé d'une station (codes surccusale / station)
    */
   @ApiSearchQueryFilter()
-  @CustomApiPaginatedResponse(AuditFlash)
+  @CustomApiPaginatedResponse(WeightLog)
   @Get('station/:branch/:station')
   async findByStation(
     @CurrentUser() authUser: AuthUser,
     @Param('branch') branch: string,
     @Param('station') station: string,
     @Query() query?: any,
-  ): Promise<Paginated<AuditFlash>> {
+  ): Promise<Paginated<WeightLog>> {
     await this.checkRead(authUser);
 
     const options = buildFilterFromApiSearchParams(
@@ -111,6 +109,22 @@ export class AuditFlashController {
   }
 
   /**
+   * Résumé journalier d'une station (weight_daily, conservé sans limite)
+   */
+  @ApiQuery({ name: 'days', required: false, type: Number, description: 'Nombre de jours (défaut 90)' })
+  @Get('station/:branch/:station/daily')
+  async stationDaily(
+    @CurrentUser() authUser: AuthUser,
+    @Param('branch') branch: string,
+    @Param('station') station: string,
+    @Query('days') days?: number,
+  ): Promise<WeightDaily[]> {
+    await this.checkRead(authUser);
+
+    return this.service.readDaily(branch, station, Number(days) || 90);
+  }
+
+  /**
    * Détail enrichi d'un audit : précédent / suivant, chronologie de la station,
    * flash courant et statistiques sur `hours` heures (défaut 24).
    */
@@ -119,7 +133,7 @@ export class AuditFlashController {
   @Get(':auditFlashId/details')
   async findDetails(
     @CurrentUser() authUser: AuthUser,
-    @Param('auditFlashId', ParseUUIDPipe) id: string,
+    @Param('auditFlashId', ParseIntPipe) id: string,
     @Query('around') around?: number,
     @Query('hours') hours?: number,
   ): Promise<AuditFlashDetails> {
@@ -135,9 +149,9 @@ export class AuditFlashController {
   @Get(':auditFlashId')
   async findOne(
     @CurrentUser() authUser: AuthUser,
-    @Param('auditFlashId', ParseUUIDPipe) id: string,
+    @Param('auditFlashId', ParseIntPipe) id: string,
     @Query() query?: any,
-  ): Promise<AuditFlash> {
+  ): Promise<WeightLog> {
     await this.checkRead(authUser);
 
     const options = buildFilterFromApiSearchParams(

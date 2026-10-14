@@ -5,6 +5,8 @@ import { CoreEntity } from '../base/core.entity';
 import { instanceToPlain } from 'class-transformer';
 import { Entity } from 'typeorm';
 
+// Index pour la lecture et la purge du flash courant d'une station (ADR-0022)
+@Index('IDX_flash_branch_station', ['branch', 'station'])
 @Entity()
 export class Flash extends CoreEntity {
   @IsOptional()

@@ -49,6 +49,18 @@ export const getDefaultSettings = () => {
       value: '20000',
     },
     {
+      // Journal des pesées (ADR-0022) : battement si poids et statut ne changent pas
+      name: 'audit_heartbeat_seconds',
+      displayName: 'Journal des pesées : battement (secondes)',
+      value: '30',
+    },
+    {
+      // Journal des pesées (ADR-0022) : durée de conservation du détail
+      name: 'audit_retention_months',
+      displayName: 'Journal des pesées : conservation (mois)',
+      value: '12',
+    },
+    {
       name: 'stopdelay',
       displayName: 'info stopdelay',
       value: '20000',

@@ -31,7 +31,6 @@ export class FlashGatewayServiceFactory {
       AbilityActionEnum.create,
       AbilitySubjectEnum.Flash,
     );
-    console.log('payloasdsdd', payload);
     return await (await this.resolveFlashService(authUser)).createRecord(payload as any);
   }
 
@@ -62,7 +61,7 @@ export class FlashGatewayServiceFactory {
       AbilityActionEnum.edit,
       AbilitySubjectEnum.Flash,
     );
-    const updatedFlash = (await this.resolveFlashService(authUser)).purgeOldPreviousFlash(dto.station, dto.branch);
+    const updatedFlash = (await this.resolveFlashService(authUser)).purgeOldPreviousFlash(dto.station, dto.branch, 1, dto.createdAt);
     return await updatedFlash;
   }
 
@@ -78,6 +77,11 @@ export class FlashGatewayServiceFactory {
    * AuthUser), pas une entité : on recharge donc la session en base pour connaître
    * son rôle et ses permissions, et pour refuser une session fermée ou un compte inactif.
    */
+  // Sessions déjà vérifiées : évite 3 à 4 lectures en base (avec 4 jointures) par trame.
+  // Une session fermée ou un compte désactivé est refusé au plus tard SESSION_CACHE_MS après.
+  private static readonly SESSION_CACHE_MS = 60 * 1000;
+  private readonly sessionCache = new Map<string, { authUser: AuthUser; expiresAt: number }>();
+
   private async assertAuthUser(user: AuthUser | any): Promise<AuthUser> {
     const sessionId: string | undefined =
       user instanceof AuthUser ? user.id : user?.sub ?? user?.id;
@@ -85,6 +89,20 @@ export class FlashGatewayServiceFactory {
       throw new UnauthorizedException(`Session introuvable`);
     }
 
+    const cached = this.sessionCache.get(sessionId);
+    if (cached && cached.expiresAt > Date.now()) {
+      return cached.authUser;
+    }
+    const authUser = await this.loadAuthUser(sessionId);
+    if (this.sessionCache.size > 1000) this.sessionCache.clear();
+    this.sessionCache.set(sessionId, {
+      authUser,
+      expiresAt: Date.now() + FlashGatewayServiceFactory.SESSION_CACHE_MS,
+    });
+    return authUser;
+  }
+
+  private async loadAuthUser(sessionId: string): Promise<AuthUser> {
     const authUser = await AuthUser.findOne({
       where: { id: sessionId },
       relations: { user: true, role: true, branch: true, targetBranch: true },

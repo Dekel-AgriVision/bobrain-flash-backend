@@ -1,10 +1,10 @@
 import { PaginatedService } from '@app/typeorm';
-import { Inject, Injectable } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Between, LessThan, MoreThan, Repository } from 'typeorm';
+import { Between, FindManyOptions, FindOneOptions, LessThan, MoreThan, Repository } from 'typeorm';
 import { REQUEST } from '@nestjs/core';
-import { AbstractService } from '../abstract.service';
-import { AuditFlash } from 'src/core/entities/flash/audit-flash.entity';
+import { WeightLog } from 'src/core/entities/flash/weight-log.entity';
+import { WeightDaily } from 'src/core/entities/flash/weight-daily.entity';
 import { Flash } from 'src/core/entities/flash/flash.entity';
 
 export interface AuditFlashStats {
@@ -18,11 +18,11 @@ export interface AuditFlashStats {
 }
 
 export interface AuditFlashDetails {
-  audit: AuditFlash;
-  previous: AuditFlash | null;
-  next: AuditFlash | null;
+  audit: WeightLog;
+  previous: WeightLog | null;
+  next: WeightLog | null;
   /** Événements de la même station autour de l'audit (du plus récent au plus ancien) */
-  timeline: AuditFlash[];
+  timeline: WeightLog[];
   /** Dernier flash connu de la station (table flash) */
   currentFlash: Flash | null;
   /** Statistiques de la station sur les `periodHours` heures précédant l'audit */
@@ -30,16 +30,27 @@ export interface AuditFlashDetails {
 }
 
 @Injectable()
-export class AuditFlashService extends AbstractService<AuditFlash> {
-  public NOT_FOUND_MESSAGE = `AuditFlash non trouvée`;
+export class AuditFlashService {
+  // Lecture seule : les pesées sont écrites par WeightLogWriterService (ADR-0022)
+  public NOT_FOUND_MESSAGE = `Pesée non trouvée dans le journal`;
 
   constructor(
-    @InjectRepository(AuditFlash)
-    private _repository: Repository<AuditFlash>,
-    protected paginatedService: PaginatedService<AuditFlash>,
+    @InjectRepository(WeightLog)
+    private _repository: Repository<WeightLog>,
+    protected paginatedService: PaginatedService<WeightLog>,
     @Inject(REQUEST) protected request: any,
-  ) {
-    super();
+  ) {}
+
+  async readPaginatedListRecord(options?: FindManyOptions<WeightLog>, page?: number, perPage?: number) {
+    return await this.paginatedService.paginate(this.repository, page, perPage, options);
+  }
+
+  async readOneRecord(options?: FindOneOptions<WeightLog>) {
+    const entity = await this.repository.findOne(options);
+    if (!entity) {
+      throw new BadRequestException(this.NOT_FOUND_MESSAGE);
+    }
+    return entity;
   }
 
   /**
@@ -135,7 +146,20 @@ export class AuditFlashService extends AbstractService<AuditFlash> {
     };
   }
 
-  get repository(): Repository<AuditFlash> {
+  /**
+   * Résumé journalier d'une station (table weight_daily, conservée sans limite).
+   */
+  async readDaily(branch: string, station: string, days = 90): Promise<WeightDaily[]> {
+    const n = Math.min(Math.max(Number(days) || 90, 1), 3660);
+    const from = new Date(Date.now() - n * 24 * 3600 * 1000).toISOString().slice(0, 10);
+    return this.repository.manager.getRepository(WeightDaily)
+      .createQueryBuilder('d')
+      .where('d.branch = :branch AND d.station = :station AND d.day >= :from', { branch, station, from })
+      .orderBy('d.day', 'DESC')
+      .getMany();
+  }
+
+  get repository(): Repository<WeightLog> {
     return this._repository;
   }
 }

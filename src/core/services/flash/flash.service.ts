@@ -7,7 +7,7 @@ import { AbstractService } from '../abstract.service';
 import { Flash } from 'src/core/entities/flash/flash.entity';
 import { CreateFlashDto } from 'src/core/dto/flash/create-flash.dto';
 import { Socket } from 'socket.io-client';
-import { AuditFlashService } from './audit-flash.service';
+import { WeightLogWriterService } from './weight-log-writer.service';
 
 @Injectable()
 //implements OnModuleInit
@@ -20,7 +20,7 @@ export class FlashService extends AbstractService<Flash> {
     @InjectRepository(Flash)
     private _repository: Repository<Flash>,
     protected paginatedService: PaginatedService<Flash>,
-    private readonly auditFlashService: AuditFlashService,
+    private readonly weightLogWriter: WeightLogWriterService,
     @Inject(REQUEST) protected request: any,
   ) {
     super();
@@ -87,17 +87,39 @@ export class FlashService extends AbstractService<Flash> {
   }
 
   async createRecord(dto: CreateFlashDto) {
-    let res = await super.createRecord(dto);
-    await this.auditFlashService.createRecord(res);
+    const res = await super.createRecord(dto);
+    // Journal des pesées : mise en file, écriture groupée et dédoublonnée (ADR-0022).
+    // N'attend pas la base : la réponse au poste n'est plus ralentie par l'historique.
+    this.weightLogWriter?.record(res as any);
     return res;
   }
 
    async updateRecord(optionsWhere: any, dto: CreateFlashDto): Promise<any> {
-    console.log('updateRecord dto:',optionsWhere, dto);
     return await super.updateRecord(optionsWhere, dto) as any;
   }
 
-  async purgeOldPreviousFlash(station: string,branch: string, keep = 1) {
+  /**
+   * Ne garde que le flash courant d'une station.
+   * Avec `keepCreatedAt` (cas normal, ADR-0022) : un DELETE simple sur l'index (branch, station),
+   * au lieu du `NOT IN (SELECT ... ORDER BY ... LIMIT)` exécuté à chaque trame.
+   */
+  async purgeOldPreviousFlash(station: string, branch: string, keep = 1, keepCreatedAt?: Date | string) {
+    if (keepCreatedAt) {
+      // On ne supprime que les flashs PLUS ANCIENS que celui qui vient d'être enregistré :
+      // deux trames concurrentes de la même station ne peuvent pas s'effacer mutuellement.
+      // Un verrou mortel (deadlock) est rejoué une fois, puis ignoré : la trame suivante purgera.
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          return await Flash.query(
+            `DELETE FROM flash WHERE branch = ? AND station = ? AND created_at < ?`,
+            [branch, station, new Date(keepCreatedAt)],
+          );
+        } catch (e) {
+          if (!/deadlock|lock wait/i.test(e?.message ?? '')) throw e;
+        }
+      }
+      return null;
+    }
     return await Flash.query(
       `
       DELETE FROM flash

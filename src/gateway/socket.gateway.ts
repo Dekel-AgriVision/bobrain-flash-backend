@@ -191,7 +191,7 @@ private async connectToErp(newflash: any) {
 @SubscribeMessage(SocketClientRWBEventEnum.SEND_WEIGHT)
 async handleMessage( @MessageBody() data: unknown,@ConnectedSocket() client: Socket,): Promise<{ status: string; savedId?: number; message?: string }> {
   try {
-    console.log('[sendWeight] Received data7:', data);
+    // console.log('[sendWeight] Received data7:', data); // désactivé : une ligne de log par trame (ADR-0022)
     const dt = this.parsePayload(data);
 
     const token = dt?.auth_token ?? client.data?.token;

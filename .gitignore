@@ -5,6 +5,7 @@
 docker-compose.yml
 package-lock.json
 /docs
+/Claude outputs
 
 # compiled output
 /dist

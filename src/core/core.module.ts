@@ -46,6 +46,11 @@ import { ErpConnService } from './services/setting/erp-conn.service';
 import { FlashGatewayServiceFactory } from './services/flash/flash-gateway-factory.service';
 import { AuditFlashService } from './services/flash/audit-flash.service';
 import { AuditFlash } from './entities/flash/audit-flash.entity';
+import { WeightLog } from './entities/flash/weight-log.entity';
+import { WeightDaily } from './entities/flash/weight-daily.entity';
+import { StationSession } from './entities/flash/station-session.entity';
+import { WeightLogWriterService } from './services/flash/weight-log-writer.service';
+import { WeightLogPartitionService } from './services/flash/weight-log-partition.service';
 import { AuditFlashController } from './controllers/flash/audit-flash.controller';
 
 @Module({
@@ -64,7 +69,10 @@ import { AuditFlashController } from './controllers/flash/audit-flash.controller
       StationActivity,
       Setting,
       ErpConnection,
-      AuditFlash
+      AuditFlash, // ancienne table, conservée en lecture pour la migration (ADR-0022)
+      WeightLog,
+      WeightDaily,
+      StationSession,
     ]),
   ],
   controllers: [
@@ -103,6 +111,8 @@ import { AuditFlashController } from './controllers/flash/audit-flash.controller
     ErpConnService,
     FlashGatewayServiceFactory,
     AuditFlashService,
+    WeightLogWriterService,
+    WeightLogPartitionService,
   ],
   exports: [
     TypeOrmModule,
@@ -117,6 +127,7 @@ import { AuditFlashController } from './controllers/flash/audit-flash.controller
     ErpConnService,
     FlashGatewayServiceFactory,
     AuditFlashService,
+    WeightLogWriterService,
   ],
 })
 export class CoreModule implements OnApplicationBootstrap {

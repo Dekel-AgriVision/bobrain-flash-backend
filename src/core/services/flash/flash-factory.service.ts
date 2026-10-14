@@ -5,7 +5,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Flash } from 'src/core/entities/flash/flash.entity';
 import { FlashService } from './flash.service';
-import { AuditFlashService } from './audit-flash.service';
+import { WeightLogWriterService } from './weight-log-writer.service';
 
 @Injectable()
 export class FlashServiceFactory {
@@ -13,14 +13,14 @@ export class FlashServiceFactory {
     @InjectRepository(Flash)
     private readonly repository: Repository<Flash>,
     private readonly paginatedService: PaginatedService<Flash>,
-    private readonly auditFlashService: AuditFlashService
+    private readonly weightLogWriter: WeightLogWriterService
   ) {}
 
   create(): FlashService {
     return new FlashService(
       this.repository,
       this.paginatedService,
-      this.auditFlashService,
+      this.weightLogWriter,
       null, // ❌ pas de REQUEST
     );
   }
